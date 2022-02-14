@@ -2,8 +2,8 @@
 
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
-use Webpatser\Uuid\Uuid;
+use Illuminate\Support\Facades\{ DB, Artisan };
+use Illuminate\Support\Str;
 
 /**
  * Generate UUID
@@ -13,7 +13,7 @@ use Webpatser\Uuid\Uuid;
 if (! function_exists('generate_uuid')) {
     function generate_uuid()
     {
-        return Uuid::generate()->string;
+        return (string) Str::uuid();
     }
 }
 
@@ -241,43 +241,36 @@ if (! function_exists('jsonResponse')) {
 }
 
 /**
- * Prepare and set response for repository class result
+ * Prepare repository response for API request
  * 
- * @param  mixed  $respotoryObject
- * @param  mixed|null  $responseData
+ * @param  stdClass     $repository
+ * @param  mixed|null $extra
  * @return \Illuminate\Support\Facades\Response
  */
-if (! function_exists('apiResponse')) {
-    function apiResponse($repositoryObject, $responseData = null)
+if (! function_exists('repository_api_response')) {
+    function repository_api_response(stdClass $repository, $extra = [])
     {
-        $response = [];
+        // Set the data as response of the execution
+        $response['data'] = $extra;
+        if ($attributes = array_keys($extra)) {
+            unset($response['data']);
 
-        if (is_array($responseData)) {
-            $attribute = array_keys($responseData)[0];
-            $response[$attribute] = $responseData[$attribute];
-        } else if ($responseData !== null) {
-            $response['data'] = $responseData;
-        }
-        
-        if ($status = $repositoryObject->status) {
-            $response['status'] = (count($repositoryObject->statuses) > 1) ? 
-                $repositoryObject->statuses :
-                $status;
+            foreach ($extra as $attribute => $value) {
+                $response[$attribute] = $value;
+            }
         }
 
-        if ($message = $repositoryObject->message) {
-            $response['message'] = (count($repositoryObject->messages) > 1) ?
-                $repositoryObject->messages : 
-                $message;
+        // Set the response status and message
+        $response['status'] = $repository->getStatus();
+        $response['message'] = $repository->getMessage();
+        if ($queryError = $repository->getQueryError()) {
+            $response['query_error'] = $queryError;
         }
 
-        if ($queryError = $repositoryObject->queryError) {
-            $response['query_error'] = (count($repositoryObject->queryErrors) > 1) ?
-                $repositoryObject->queryErrors :
-                $queryError;
-        }
+        // Acquire the HTTP status code
+        $statusCode = $repository->getHttpStatusCode();
 
-        return response()->json($response, $repositoryObject->httpStatus);
+        return response()->json($response, $statusCode);
     }
 }
 
@@ -305,5 +298,43 @@ if (! function_exists('is_updating_request')) {
         return 
             request()->isMethod('PUT') or 
             request()->isMethod('PATCH');
+    }
+}
+
+/**
+ * Run laravel artisan call directly using snake case
+ * method
+ * 
+ * @param  string  $command
+ * @return void
+ */
+if (! function_exists('artisan_call')) {
+    function artisan_call(string $command)
+    {
+        Artisan::call($command);
+    }
+}
+
+/**
+ * Get certain env variable with condition.
+ * If true then get value from second parameter as env attribute.
+ * If false do for the third parameter
+ * 
+ * @param  bool    $condition
+ * @param  string  $firstEnvAttr
+ * @param  string  $secondEnvAttr
+ * @param  mixed   $defaultValue
+ * @return mixed
+ */
+if (! function_exists('which_env')) {
+    function which_env(
+        bool $condition, 
+        string $firstEnvAttr, 
+        string $secondEnvAttr,
+        $defaultValue = []
+    ) {
+        $attr = $condition ? $firstEnvAttr : $secondEnvAttr;
+
+        return env($attr, $defaultValue);
     }
 }

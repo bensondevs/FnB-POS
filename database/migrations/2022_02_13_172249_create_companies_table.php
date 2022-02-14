@@ -4,8 +4,6 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-use App\Enums\User\UserType;
-
 return new class extends Migration
 {
     /**
@@ -15,21 +13,19 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('users', function (Blueprint $table) {
+        Schema::create('companies', function (Blueprint $table) {
             $table->uuid('id')->primary();
 
-            $table->string('name');
+            $table->string('company_name');
+            $table->longText('address');
+            $table->string('phone_number');
 
-            $table->string('username')->unique();
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            
-            $table->string('password');
+            $table->uuid('main_owner_id')->nullable();
+            $table->foreign('main_owner_id')
+                ->references('id')
+                ->on('users')
+                ->onDelete('SET NULL');
 
-            $table->tinyInteger('type')
-                ->default(UserType::Owner);
-            
-            $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -42,6 +38,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('users');
+        Schema::dropIfExists('companies');
     }
 };
